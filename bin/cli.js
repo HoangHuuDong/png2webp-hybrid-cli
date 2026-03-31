@@ -10,14 +10,14 @@ const {
 } = require("../src/node-converter");
 
 function printHelp() {
-  console.log(`png2webp - Convert PNG images to WebP
+  console.log(`png2webp - Convert PNG/JPG/JPEG images to WebP
 
 Usage:
   png2webp [options]
 
 Options:
   --dir <path>          Images directory (default: ./assets/images)
-  --replace             Delete original PNG after successful conversion
+  --replace             Delete original source file after successful conversion (also when WebP is newer)
   --only                Convert only: ${ONLY_PNG_NAMES.join(", ")}
   --quality <0-100>     WebP quality (default: ${DEFAULT_QUALITY})
   --engine <name>       node | python | auto (default: auto)
@@ -126,7 +126,7 @@ async function main() {
     }
     validateDir(args.dir);
 
-    console.log(`Converting PNG -> WebP in ${args.dir} (quality=${args.quality})`);
+    console.log(`Converting PNG/JPG/JPEG -> WebP in ${args.dir} (quality=${args.quality})`);
     if (args.only) {
       console.log(`Converting only: ${ONLY_PNG_NAMES.join(", ")}`);
     }

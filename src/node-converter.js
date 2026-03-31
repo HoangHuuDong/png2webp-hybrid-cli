@@ -4,23 +4,27 @@ const sharp = require("sharp");
 
 const DEFAULT_QUALITY = 85;
 const ONLY_PNG_NAMES = ["image1.png", "image2.png"];
+const SUPPORTED_EXTENSIONS = [".png", ".jpg", ".jpeg"];
 
-async function walkPngFiles(dir) {
+async function walkImageFiles(dir) {
   const out = [];
   const entries = await fs.readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);
     if (entry.isDirectory()) {
-      out.push(...(await walkPngFiles(fullPath)));
-    } else if (entry.isFile() && entry.name.toLowerCase().endsWith(".png")) {
+      out.push(...(await walkImageFiles(fullPath)));
+    } else if (
+      entry.isFile() &&
+      SUPPORTED_EXTENSIONS.includes(path.extname(entry.name).toLowerCase())
+    ) {
       out.push(fullPath);
     }
   }
   return out;
 }
 
-async function resolvePngFiles(imagesDir, only) {
-  if (!only) return walkPngFiles(imagesDir);
+async function resolveImageFiles(imagesDir, only) {
+  if (!only) return walkImageFiles(imagesDir);
   const checks = ONLY_PNG_NAMES.map((name) => path.join(imagesDir, name));
   const found = [];
   for (const filePath of checks) {
@@ -44,12 +48,12 @@ async function convertWithNode({
   only = false,
   quality = DEFAULT_QUALITY,
 }) {
-  const pngPaths = await resolvePngFiles(imagesDir, only);
-  if (pngPaths.length === 0) {
+  const sourcePaths = await resolveImageFiles(imagesDir, only);
+  if (sourcePaths.length === 0) {
     if (only) {
       console.log("No matching PNG files found.");
     } else {
-      console.log(`No PNG files found in ${imagesDir}`);
+      console.log(`No supported image files found in ${imagesDir}`);
     }
     return { converted: 0, skipped: 0, failed: 0 };
   }
@@ -61,50 +65,58 @@ async function convertWithNode({
   let totalAfter = 0;
   const increasedFiles = [];
 
-  for (const pngPath of pngPaths) {
-    const webpPath = pngPath.replace(/\.png$/i, ".webp");
+  for (const sourcePath of sourcePaths) {
+    const webpPath = path.join(
+      path.dirname(sourcePath),
+      `${path.parse(sourcePath).name}.webp`
+    );
     try {
-      const pngStat = await fs.stat(pngPath);
-      totalBefore += pngStat.size;
+      const sourceStat = await fs.stat(sourcePath);
+      totalBefore += sourceStat.size;
 
       try {
         const webpStat = await fs.stat(webpPath);
-        if (webpStat.mtimeMs >= pngStat.mtimeMs) {
+        if (webpStat.mtimeMs >= sourceStat.mtimeMs) {
           skipped += 1;
-          const rel = path.relative(imagesDir, pngPath);
+          const rel = path.relative(imagesDir, sourcePath);
+          totalAfter += webpStat.size;
           console.log(`Skip (WebP newer): ${rel}`);
+          if (replaceOriginal) {
+            await fs.unlink(sourcePath);
+            console.log(`Removed original ${rel}`);
+          }
           continue;
         }
       } catch {
         // No existing webp file, proceed convert.
       }
 
-      await sharp(pngPath).webp({ quality }).toFile(webpPath);
+      await sharp(sourcePath).webp({ quality }).toFile(webpPath);
 
       const webpStat = await fs.stat(webpPath);
       totalAfter += webpStat.size;
-      const deltaBytes = webpStat.size - pngStat.size;
-      const deltaPct = pngStat.size ? (deltaBytes / pngStat.size) * 100 : 0;
-      const rel = path.relative(imagesDir, pngPath);
+      const deltaBytes = webpStat.size - sourceStat.size;
+      const deltaPct = sourceStat.size ? (deltaBytes / sourceStat.size) * 100 : 0;
+      const rel = path.relative(imagesDir, sourcePath);
       if (deltaBytes > 0) {
         increasedFiles.push(rel);
       }
       console.log(
-        `OK ${rel} -> ${rel.replace(/\.png$/i, ".webp")} (${formatKb(
-          pngStat.size
+        `OK ${rel} -> ${path.parse(rel).name}.webp (${formatKb(
+          sourceStat.size
         )} -> ${formatKb(webpStat.size)}, ${
           deltaPct >= 0 ? "+" : ""
         }${deltaPct.toFixed(0)}%)`
       );
 
       if (replaceOriginal) {
-        await fs.unlink(pngPath);
+        await fs.unlink(sourcePath);
         console.log(`Removed original ${rel}`);
       }
       converted += 1;
     } catch (err) {
       failed += 1;
-      console.error(`Error ${pngPath}: ${err.message}`);
+      console.error(`Error ${sourcePath}: ${err.message}`);
     }
   }
 
@@ -129,5 +141,6 @@ async function convertWithNode({
 module.exports = {
   DEFAULT_QUALITY,
   ONLY_PNG_NAMES,
+  SUPPORTED_EXTENSIONS,
   convertWithNode,
 };

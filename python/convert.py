@@ -7,6 +7,7 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 IMAGES_DIR = SCRIPT_DIR.parent / "assets" / "images"
 WEBP_QUALITY = 85
 ONLY_PNG_NAMES = ["image1.png", "image2.png"]
+SUPPORTED_EXTENSIONS = {".png", ".jpg", ".jpeg"}
 
 
 def convert_png_to_webp(
@@ -27,9 +28,9 @@ def convert_png_to_webp(
             print("No matching PNG files found.")
             return 0
     else:
-        pngs = list(images_dir.rglob("*.png"))
+        pngs = [p for p in images_dir.rglob("*") if p.is_file() and p.suffix.lower() in SUPPORTED_EXTENSIONS]
         if not pngs:
-            print(f"No PNG files found in {images_dir}")
+            print(f"No supported image files found in {images_dir}")
             return 0
 
     try:
@@ -53,7 +54,11 @@ def convert_png_to_webp(
 
             if webp_path.exists() and webp_path.stat().st_mtime >= png_stat.st_mtime:
                 skipped += 1
+                total_after += webp_path.stat().st_size
                 print(f"Skip (WebP newer): {png_path.relative_to(images_dir)}")
+                if replace_original:
+                    png_path.unlink()
+                    print(f"Removed original {png_path.relative_to(images_dir)}")
                 continue
 
             img = Image.open(png_path)
@@ -102,7 +107,7 @@ def convert_png_to_webp(
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Convert PNG to WebP in assets/images")
+    parser = argparse.ArgumentParser(description="Convert PNG/JPG/JPEG to WebP in assets/images")
     parser.add_argument(
         "--replace",
         action="store_true",
@@ -138,7 +143,7 @@ def main() -> None:
     if only_files:
         print(f"Converting only: {', '.join(only_files)} -> WebP (quality={args.quality})")
     else:
-        print(f"Converting PNG -> WebP in {args.dir} (quality={args.quality})")
+        print(f"Converting PNG/JPG/JPEG -> WebP in {args.dir} (quality={args.quality})")
     if args.replace:
         print("(originals will be deleted after convert)")
 
