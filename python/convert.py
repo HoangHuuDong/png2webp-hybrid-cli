@@ -43,6 +43,7 @@ def convert_png_to_webp(
     skipped = 0
     total_before = 0
     total_after = 0
+    increased_files: List[str] = []
 
     for png_path in pngs:
         webp_path = png_path.with_suffix(".webp")
@@ -65,12 +66,15 @@ def convert_png_to_webp(
 
             webp_stat = webp_path.stat()
             total_after += webp_stat.st_size
-            saved = png_stat.st_size - webp_stat.st_size
-            pct = (saved / png_stat.st_size * 100) if png_stat.st_size else 0
+            delta_bytes = webp_stat.st_size - png_stat.st_size
+            delta_pct = (delta_bytes / png_stat.st_size * 100) if png_stat.st_size else 0
             rel = png_path.relative_to(images_dir)
+            if delta_bytes > 0:
+                increased_files.append(str(rel))
             print(
                 f"OK {rel} -> {rel.with_suffix('.webp')} "
-                f"({png_stat.st_size // 1024}KB -> {webp_stat.st_size // 1024}KB, -{pct:.0f}%)"
+                f"({png_stat.st_size // 1024}KB -> {webp_stat.st_size // 1024}KB, "
+                f"{'+' if delta_pct >= 0 else ''}{delta_pct:.0f}%)"
             )
             if replace_original:
                 png_path.unlink()
@@ -80,12 +84,20 @@ def convert_png_to_webp(
             failed += 1
             print(f"Error {png_path}: {e}")
 
-    total_saved = total_before - total_after
-    total_pct = (total_saved / total_before * 100) if total_before else 0
+    total_delta = total_after - total_before
+    total_pct = (total_delta / total_before * 100) if total_before else 0
     print(
         f"Done. converted={converted}, skipped={skipped}, failed={failed}, "
-        f"saved={max(total_saved, 0) // 1024}KB ({total_pct:.0f}%)"
+        f"total={'+' if total_delta >= 0 else ''}{abs(total_delta) // 1024}KB "
+        f"({'+' if total_pct >= 0 else ''}{total_pct:.0f}%)"
     )
+    if increased_files:
+        print(
+            "Note: cac file anh "
+            + ", ".join(increased_files)
+            + " sau khi chuyen doi sang .webp co dau hieu tang size "
+            + "(do anh .png da toi uu tot hon roi, luu y nen dung .png tot hon dung .webp)."
+        )
     return 1 if failed > 0 else 0
 
 

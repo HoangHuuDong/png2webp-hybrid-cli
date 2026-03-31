@@ -59,6 +59,7 @@ async function convertWithNode({
   let failed = 0;
   let totalBefore = 0;
   let totalAfter = 0;
+  const increasedFiles = [];
 
   for (const pngPath of pngPaths) {
     const webpPath = pngPath.replace(/\.png$/i, ".webp");
@@ -82,13 +83,18 @@ async function convertWithNode({
 
       const webpStat = await fs.stat(webpPath);
       totalAfter += webpStat.size;
-      const saved = pngStat.size - webpStat.size;
-      const pct = pngStat.size ? (saved / pngStat.size) * 100 : 0;
+      const deltaBytes = webpStat.size - pngStat.size;
+      const deltaPct = pngStat.size ? (deltaBytes / pngStat.size) * 100 : 0;
       const rel = path.relative(imagesDir, pngPath);
+      if (deltaBytes > 0) {
+        increasedFiles.push(rel);
+      }
       console.log(
         `OK ${rel} -> ${rel.replace(/\.png$/i, ".webp")} (${formatKb(
           pngStat.size
-        )} -> ${formatKb(webpStat.size)}, -${pct.toFixed(0)}%)`
+        )} -> ${formatKb(webpStat.size)}, ${
+          deltaPct >= 0 ? "+" : ""
+        }${deltaPct.toFixed(0)}%)`
       );
 
       if (replaceOriginal) {
@@ -102,13 +108,20 @@ async function convertWithNode({
     }
   }
 
-  const totalSaved = totalBefore - totalAfter;
-  const totalPct = totalBefore ? (totalSaved / totalBefore) * 100 : 0;
+  const totalDelta = totalAfter - totalBefore;
+  const totalPct = totalBefore ? (totalDelta / totalBefore) * 100 : 0;
   console.log(
-    `Done. converted=${converted}, skipped=${skipped}, failed=${failed}, saved=${formatKb(
-      Math.max(totalSaved, 0)
-    )} (${totalPct.toFixed(0)}%)`
+    `Done. converted=${converted}, skipped=${skipped}, failed=${failed}, total=${
+      totalDelta >= 0 ? "+" : ""
+    }${formatKb(Math.abs(totalDelta))} (${totalPct >= 0 ? "+" : ""}${totalPct.toFixed(0)}%)`
   );
+  if (increasedFiles.length > 0) {
+    console.log(
+      `Note: cac file anh ${increasedFiles.join(
+        ", "
+      )} sau khi chuyen doi sang .webp co dau hieu tang size (do anh .png da toi uu tot hon roi, luu y nen dung .png tot hon dung .webp).`
+    );
+  }
 
   return { converted, skipped, failed };
 }
