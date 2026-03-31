@@ -1,0 +1,35 @@
+{
+  "name": "png2webp-hybrid-cli",
+  "version": "1.0.2",
+  "description": "CLI tool to convert PNG images to WebP with Node primary engine and Python fallback.",
+  "bin": {
+    "png2webp": "bin/cli.js"
+  },
+  "main": "src/node-converter.js",
+  "files": [
+    "bin",
+    "src",
+    "python",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "test": "node ./bin/cli.js --help",
+    "pack:dry": "npm pack --dry-run"
+  },
+  "keywords": [
+    "png",
+    "webp",
+    "image",
+    "cli",
+    "frontend",
+    "react",
+    "vite",
+    "optimizer"
+  ],
+  "author": "hoanghuudong",
+  "license": "MIT",
+  "dependencies": {
+    "sharp": "^0.34.4"
+  }
+}

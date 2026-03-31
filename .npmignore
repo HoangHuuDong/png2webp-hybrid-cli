@@ -1,0 +1,5 @@
+test-fixtures
+.cursor
+node_modules
+npm-debug.log
+*.tgz
